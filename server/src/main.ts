@@ -4,12 +4,16 @@ import { ConfigService } from '@nestjs/config';
 import { ValidationPipe } from '@nestjs/common';
 
 import morgan from 'morgan';
+import { TransformInterceptor } from './common/interceptors/transform.interceptor';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   const configService = app.get(ConfigService);
 
   const port = configService.get<number>('PORT', 3000);
+
+  // standardize requests
+  app.useGlobalInterceptors(new TransformInterceptor());
 
   // use Morgan to log HTTP requests/responses
   app.use(morgan('dev'));

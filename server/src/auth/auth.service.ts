@@ -3,11 +3,13 @@ import {
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
+
 import { UsersService } from '../users/users.service';
 import { RegisterDto } from './dto/register.dto';
 
 import * as bcrypt from 'bcrypt';
 import { JwtService } from '@nestjs/jwt';
+
 import { User } from '../generated/prisma/client';
 
 @Injectable()
@@ -21,13 +23,13 @@ export class AuthService {
     const user = await this.usersService.findByEmail(email);
 
     if (!user) {
-      throw new UnauthorizedException();
+      throw new UnauthorizedException('Invalid credentials');
     }
 
     const isMatch = await bcrypt.compare(password, user.passwordHash);
 
     if (!isMatch) {
-      throw new UnauthorizedException();
+      throw new UnauthorizedException('Invalid credentials');
     }
 
     return user;
@@ -48,7 +50,10 @@ export class AuthService {
       passwordHash,
     });
 
-    return user;
+    // remove sensitive field
+    const { passwordHash: _, ...safeUser } = user;
+
+    return safeUser;
   }
 
   async login(user: User) {
@@ -58,7 +63,7 @@ export class AuthService {
     };
 
     return {
-      access_token: await this.jwtService.signAsync(payload),
+      accessToken: await this.jwtService.signAsync(payload),
     };
   }
 }
