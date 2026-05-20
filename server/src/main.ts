@@ -4,6 +4,8 @@ import { ConfigService } from '@nestjs/config';
 import { ValidationPipe } from '@nestjs/common';
 
 import morgan from 'morgan';
+import cookieParser from 'cookie-parser';
+
 import { TransformInterceptor } from './common/interceptors/transform.interceptor';
 
 async function bootstrap() {
@@ -11,6 +13,14 @@ async function bootstrap() {
   const configService = app.get(ConfigService);
 
   const port = configService.get<number>('PORT', 3000);
+
+  app.use(cookieParser());
+
+  // CORS configuration
+  app.enableCors({
+    origin: configService.get<string>('CLIENT_URL'),
+    credentials: true,
+  });
 
   // standardize requests
   app.useGlobalInterceptors(new TransformInterceptor());
