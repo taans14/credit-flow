@@ -6,7 +6,7 @@ export default function RegisterPage() {
   const navigate = useNavigate();
 
   const [form, setForm] = useState({
-    name: "",
+    fullName: "",
     email: "",
     password: "",
   });
@@ -50,13 +50,15 @@ export default function RegisterPage() {
 
         <form onSubmit={handleSubmit} className="space-y-5">
           <div>
-            <label className="mb-2 block text-sm text-zinc-300">Name</label>
+            <label className="mb-2 block text-sm text-zinc-300">
+              Full Name
+            </label>
 
             <input
               type="text"
               placeholder="John Doe"
-              value={form.name}
-              onChange={(e) => setForm({ ...form, name: e.target.value })}
+              value={form.fullName}
+              onChange={(e) => setForm({ ...form, fullName: e.target.value })}
               className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white outline-none transition focus:border-cyan-400"
             />
           </div>
