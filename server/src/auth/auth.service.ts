@@ -15,6 +15,14 @@ import { ConfigService } from '@nestjs/config';
 
 @Injectable()
 export class AuthService {
+  /**
+   * Centralizes authentication concerns (validation, registration, tokens).
+   * - Keeps credential checks and token generation together so callers get
+   *   an authenticated user and tokens from a single place.
+   * - Separates concerns: the `UsersService` owns persistence; `AuthService`
+   *   owns auth rules and secrets (loaded from config) so rotation/testing
+   *   is easier.
+   */
   constructor(
     private readonly usersService: UsersService,
     private readonly jwtService: JwtService,
@@ -63,6 +71,9 @@ export class AuthService {
       email: user.email,
     };
 
+    // WHY: We issue short-lived access tokens and longer-lived refresh tokens
+    // to reduce blast radius if an access token is leaked while still allowing
+    // seamless re-authentication via refresh tokens.
     const accessToken = await this.jwtService.signAsync(payload, {
       secret: this.configService.getOrThrow<string>('JWT_SECRET'),
       expiresIn: this.configService.getOrThrow<string>(
@@ -71,6 +82,9 @@ export class AuthService {
     });
 
     const refreshToken = await this.jwtService.signAsync(payload, {
+      // WHY: Refresh tokens are signed with a separate secret so they can be
+      // rotated independently from access tokens (helps with key rotation
+      // strategies and reducing scope when secrets are compromised).
       secret: this.configService.getOrThrow<string>('JWT_REFRESH_SECRET'),
       expiresIn: this.configService.getOrThrow<string>(
         'JWT_REFRESH_EXPIRATION_TIME',

@@ -6,6 +6,13 @@ import { User } from '../generated/prisma/client';
 export class UsersService {
   constructor(private readonly prisma: PrismaService) {}
 
+  /**
+   * WHY: This service isolates database access for users so higher-level
+   * services (like `AuthService`) can focus on authentication rules and not
+   * on persistence details. Keeping this boundary makes it easier to mock
+   * user storage for tests and to evolve the schema independently.
+   */
+
   async findByEmail(email: string): Promise<User | null> {
     return this.prisma.user.findUnique({
       where: { email },
