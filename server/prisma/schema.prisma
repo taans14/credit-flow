@@ -78,6 +78,7 @@ model Feature {
   id          String   @id @default(uuid()) @db.Uuid
   code        String   @unique
   displayName String   @map("display_name")
+  cost        Int      @default(0)
   createdAt   DateTime @default(now()) @map("created_at")
 
   packages     PackageFeature[]
