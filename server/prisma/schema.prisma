@@ -53,6 +53,7 @@ model User {
   wallet             UserWallet?
   orders             Order[]
   creditTransactions CreditTransaction[]
+  userFeatures       UserFeature[]
 
   @@map("users")
 }
@@ -73,13 +74,38 @@ model CreditPackage {
   @@map("credit_packages")
 }
 
+model Feature {
+  id          String   @id @default(uuid()) @db.Uuid
+  code        String   @unique
+  displayName String   @map("display_name")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  packages     PackageFeature[]
+  userFeatures UserFeature[]
+
+  @@map("features")
+}
+
+model UserFeature {
+  userId    String @map("user_id") @db.Uuid
+  featureId String @map("feature_id") @db.Uuid
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  feature Feature @relation(fields: [featureId], references: [id], onDelete: Cascade)
+
+  @@id([userId, featureId])
+  @@map("user_features")
+}
+
 model PackageFeature {
-  id          String @id @default(uuid()) @db.Uuid
-  packageId   String @map("package_id") @db.Uuid
-  featureName String @map("feature_name")
+  packageId String @map("package_id") @db.Uuid
+  featureId String @map("feature_id") @db.Uuid
 
   creditPackage CreditPackage @relation(fields: [packageId], references: [id], onDelete: Cascade)
 
+  feature Feature @relation(fields: [featureId], references: [id], onDelete: Cascade)
+
+  @@id([packageId, featureId])
   @@map("package_features")
 }
 

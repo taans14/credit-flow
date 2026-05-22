@@ -8,6 +8,15 @@ export class PrismaService
   extends PrismaClient
   implements OnModuleInit, OnModuleDestroy
 {
+  /**
+   * WHY: The `PrismaPg` adapter is configured here with a connection string
+   * from the `ConfigService` so the database connection is constructed once
+   * and injected across the app. Placing lifecycle hooks on the service
+   * (`onModuleInit` / `onModuleDestroy`) ensures we explicitly connect and
+   * disconnect in Nest's lifecycle rather than relying on implicit side
+   * effects, making startup/shutdown behavior predictable for tests and
+   * deployments.
+   */
   constructor(private readonly configService: ConfigService) {
     const connectionString = configService.getOrThrow<string>('DATABASE_URL');
 
