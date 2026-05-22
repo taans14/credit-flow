@@ -13,16 +13,10 @@ import { JwtService } from '@nestjs/jwt';
 import { User } from '../generated/prisma/client';
 import { ConfigService } from '@nestjs/config';
 
+import type { Response, Request } from 'express';
+
 @Injectable()
 export class AuthService {
-  /**
-   * Centralizes authentication concerns (validation, registration, tokens).
-   * - Keeps credential checks and token generation together so callers get
-   *   an authenticated user and tokens from a single place.
-   * - Separates concerns: the `UsersService` owns persistence; `AuthService`
-   *   owns auth rules and secrets (loaded from config) so rotation/testing
-   *   is easier.
-   */
   constructor(
     private readonly usersService: UsersService,
     private readonly jwtService: JwtService,
@@ -62,7 +56,10 @@ export class AuthService {
 
     const { passwordHash: _, ...safeUser } = user;
 
-    return safeUser;
+    return {
+      message: 'User registered successfully',
+      data: safeUser,
+    };
   }
 
   async generateTokens(user: User) {
@@ -71,9 +68,6 @@ export class AuthService {
       email: user.email,
     };
 
-    // WHY: We issue short-lived access tokens and longer-lived refresh tokens
-    // to reduce blast radius if an access token is leaked while still allowing
-    // seamless re-authentication via refresh tokens.
     const accessToken = await this.jwtService.signAsync(payload, {
       secret: this.configService.getOrThrow<string>('JWT_SECRET'),
       expiresIn: this.configService.getOrThrow<string>(
@@ -82,9 +76,6 @@ export class AuthService {
     });
 
     const refreshToken = await this.jwtService.signAsync(payload, {
-      // WHY: Refresh tokens are signed with a separate secret so they can be
-      // rotated independently from access tokens (helps with key rotation
-      // strategies and reducing scope when secrets are compromised).
       secret: this.configService.getOrThrow<string>('JWT_REFRESH_SECRET'),
       expiresIn: this.configService.getOrThrow<string>(
         'JWT_REFRESH_EXPIRATION_TIME',
@@ -97,11 +88,38 @@ export class AuthService {
     };
   }
 
-  async login(user: User) {
-    return this.generateTokens(user);
+  private setRefreshTokenCookie(res: Response, refreshToken: string) {
+    res.cookie('refreshToken', refreshToken, {
+      httpOnly: true,
+      secure: false,
+      sameSite: 'lax',
+      path: '/',
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+    });
   }
 
-  async refresh(refreshToken: string) {
+  async login(dto: { email: string; password: string }, res: Response) {
+    const user = await this.validateUser(dto.email, dto.password);
+
+    const tokens = await this.generateTokens(user);
+
+    this.setRefreshTokenCookie(res, tokens.refreshToken);
+
+    return {
+      message: 'Login successful',
+      data: {
+        accessToken: tokens.accessToken,
+      },
+    };
+  }
+
+  async refresh(req: Request, res: Response) {
+    const refreshToken = req.cookies?.refreshToken;
+
+    if (!refreshToken) {
+      throw new UnauthorizedException('Refresh token missing');
+    }
+
     try {
       const payload = await this.jwtService.verifyAsync(refreshToken, {
         secret: this.configService.get<string>('JWT_REFRESH_SECRET'),
@@ -113,9 +131,38 @@ export class AuthService {
         throw new UnauthorizedException();
       }
 
-      return this.generateTokens(user);
+      const tokens = await this.generateTokens(user);
+
+      this.setRefreshTokenCookie(res, tokens.refreshToken);
+
+      return {
+        message: 'Token refreshed',
+        data: {
+          accessToken: tokens.accessToken,
+        },
+      };
     } catch {
       throw new UnauthorizedException('Invalid refresh token');
     }
+  }
+
+  logout(res: Response) {
+    res.clearCookie('refreshToken', {
+      httpOnly: true,
+      secure: false,
+      sameSite: 'lax',
+      path: '/',
+    });
+
+    return {
+      message: 'Logout successful',
+    };
+  }
+
+  getMe(user: User) {
+    return {
+      message: 'User fetched successfully',
+      data: user,
+    };
   }
 }

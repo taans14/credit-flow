@@ -7,7 +7,6 @@ import {
   UseGuards,
   Req,
   Res,
-  UnauthorizedException,
 } from '@nestjs/common';
 
 import { AuthService } from './auth.service';
@@ -22,89 +21,31 @@ export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   @Post('register')
-  async register(@Body() dto: RegisterDto) {
-    const user = await this.authService.register(dto);
-
-    return {
-      message: 'User registered successfully',
-      data: user,
-    };
+  register(@Body() dto: RegisterDto) {
+    return this.authService.register(dto);
   }
 
   @Post('login')
-  async login(
-    @Body() dto: LoginDto,
-    @Res({ passthrough: true }) res: Response,
-  ) {
-    const user = await this.authService.validateUser(dto.email, dto.password);
-
-    const tokens = await this.authService.login(user);
-
-    res.cookie('refreshToken', tokens.refreshToken, {
-      httpOnly: true,
-      secure: false,
-      sameSite: 'lax',
-      path: '/',
-      maxAge: 7 * 24 * 60 * 60 * 1000,
-    });
-
-    return {
-      message: 'Login successful',
-      data: {
-        accessToken: tokens.accessToken,
-      },
-    };
+  login(@Body() dto: LoginDto, @Res({ passthrough: true }) res: Response) {
+    return this.authService.login(dto, res);
   }
 
   @Post('refresh')
-  async refresh(
+  refresh(
     @Req() req: ExpressRequest,
     @Res({ passthrough: true }) res: Response,
   ) {
-    const refreshToken = req.cookies?.refreshToken;
-
-    if (!refreshToken) {
-      throw new UnauthorizedException('Refresh token missing');
-    }
-
-    const tokens = await this.authService.refresh(refreshToken);
-
-    res.cookie('refreshToken', tokens.refreshToken, {
-      httpOnly: true,
-      secure: false,
-      sameSite: 'lax',
-      path: '/',
-      maxAge: 7 * 24 * 60 * 60 * 1000,
-    });
-
-    return {
-      message: 'Token refreshed',
-      data: {
-        accessToken: tokens.accessToken,
-      },
-    };
+    return this.authService.refresh(req, res);
   }
 
   @Post('logout')
   logout(@Res({ passthrough: true }) res: Response) {
-    res.clearCookie('refreshToken', {
-      httpOnly: true,
-      secure: false,
-      sameSite: 'lax',
-      path: '/',
-    });
-
-    return {
-      message: 'Logout successful',
-    };
+    return this.authService.logout(res);
   }
 
   @UseGuards(JwtAuthGuard)
   @Get('me')
   getMe(@Request() req: any) {
-    return {
-      message: 'User fetched successfully',
-      data: req.user,
-    };
+    return this.authService.getMe(req.user);
   }
 }
